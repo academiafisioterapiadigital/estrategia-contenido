@@ -214,6 +214,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#38ada9}
     </div>
     <div id="anio-hitos"></div>
     <div id="anio-cal"></div>
+    <div id="anio-detalle"></div>
   </div>
 
   <!-- TRIMESTRES -->
@@ -441,25 +442,40 @@ function renderAnio(){
     monthCells(y,m).forEach(function(d){
       if(d===null){html+='<div class="cal-day"></div>';return;}
       var ds2=y+'-'+pad(m+1)+'-'+pad(d);
-      var hs=est.hitos.filter(function(h){return h.mes===m+1&&h.dia===d;});
+      var hi=-1;for(var z=0;z<est.hitos.length;z++){var hz=est.hitos[z];if(hz.mes===m+1&&hz.dia===d){hi=z;break;}}
       var hasVenta=est.ventanas_venta.some(function(vt){return inRange(ds2,vt);});
       var hasIdea=ideas.some(function(it){return it.fecha===ds2;});
       var style='',cls='cal-day';
-      if(hs.length){cls+=' has';style='background:'+(TIPOCOL[hs[0].tipo]||'#999');}
+      if(hi>=0){cls+=' has';style='background:'+(TIPOCOL[est.hitos[hi].tipo]||'#999');}
       else if(hasVenta){cls+=' has';style='background:'+TIPOCOL.venta;}
-      html+='<div class="'+cls+'" style="'+style+'">'+d+(hasIdea?'<span class="idot"></span>':'')+'</div>';
+      html+='<div class="'+cls+(hi>=0?' anio-clic':'')+'"'+(hi>=0?' data-hi="'+hi+'"':'')+' style="'+style+'">'+d+(hasIdea?'<span class="idot"></span>':'')+'</div>';
     });
     html+='</div></div>';
   }
   cont.innerHTML=html;
   cont.querySelectorAll('h4').forEach(function(h){h.onclick=function(){mesActivo=parseInt(h.dataset.m);renderMes();goTo('view-mes');};});
+  cont.querySelectorAll('.anio-clic').forEach(function(c){c.onclick=function(){openHitoDetalle(parseInt(c.dataset.hi));};});
   var hl=document.getElementById('anio-hitos');
   if(hl){
     var arr=est.hitos.map(function(hh,i){return {h:hh,i:i};}).sort(function(a,b){return (a.h.mes-b.h.mes)||((a.h.dia||0)-(b.h.dia||0));});
-    hl.innerHTML=arr.length?('<div style="font-size:12px;color:#999;margin:2px 0 6px">Toca la ✕ para borrar una fecha:</div><div class="chips">'+arr.map(function(o){var hh=o.h;return '<span class="chip" style="border-color:'+(TIPOCOL[hh.tipo]||'#ccc')+'"><span style="width:8px;height:8px;border-radius:50%;background:'+(TIPOCOL[hh.tipo]||'#ccc')+';display:inline-block"></span> '+MESCORTO[hh.mes-1]+(hh.dia?' '+hh.dia:'')+' · '+esc(hh.texto)+' <span class="x" data-hi="'+o.i+'">✕</span></span>';}).join('')+'</div>'):'';
-    hl.querySelectorAll('.x').forEach(function(x){x.onclick=function(){est.hitos.splice(parseInt(x.dataset.hi),1);renderAnio();renderMes();saveEstrategia();};});
+    hl.innerHTML=arr.length?('<div style="font-size:12px;color:#999;margin:2px 0 6px">Toca una fecha para editarla o borrarla:</div><div class="chips">'+arr.map(function(o){var hh=o.h;return '<span class="chip anio-chip" data-hi="'+o.i+'" style="border-color:'+(TIPOCOL[hh.tipo]||'#ccc')+';cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;background:'+(TIPOCOL[hh.tipo]||'#ccc')+';display:inline-block"></span> '+MESCORTO[hh.mes-1]+(hh.dia?' '+hh.dia:'')+' · '+esc(hh.texto)+'</span>';}).join('')+'</div>'):'';
+    hl.querySelectorAll('.anio-chip').forEach(function(c){c.onclick=function(){openHitoDetalle(parseInt(c.dataset.hi));};});
   }
 }
+function openHitoDetalle(i){
+  var h=est.hitos[i];if(!h)return;
+  var tipos=[['personal','Personal'],['mundial','Día mundial'],['venta','Venta'],['ciclo','Ciclo del lead']];
+  var html='<div class="detalle"><span class="close" onclick="cerrarHitoDetalle()">✕</span><h3>Editar fecha</h3>';
+  html+='<label class="label">Título</label><input type="text" id="hd-texto" value="'+esc(h.texto)+'">';
+  html+='<label class="label">Mes y día</label><div class="row"><select id="hd-mes">'+MESES.map(function(mm,mi){return '<option value="'+(mi+1)+'"'+(h.mes===mi+1?' selected':'')+'>'+mm+'</option>';}).join('')+'</select><input type="number" id="hd-dia" min="1" max="31" placeholder="Día (opcional)" value="'+(h.dia||'')+'"></div>';
+  html+='<label class="label">Tipo</label><select id="hd-tipo">'+tipos.map(function(t){return '<option value="'+t[0]+'"'+(h.tipo===t[0]?' selected':'')+'>'+t[1]+'</option>';}).join('')+'</select>';
+  html+='<div class="row" style="margin-top:8px"><button class="btn primary" onclick="guardarHitoDetalle('+i+')">Guardar cambios</button><button class="btn" style="color:#c0392b" onclick="borrarHito('+i+')">Borrar</button></div></div>';
+  document.getElementById('anio-detalle').innerHTML=html;
+  document.getElementById('anio-detalle').scrollIntoView({behavior:'smooth'});
+}
+function guardarHitoDetalle(i){var h=est.hitos[i];if(!h)return;var t=document.getElementById('hd-texto').value.trim();if(t)h.texto=t;h.mes=parseInt(document.getElementById('hd-mes').value);var d=document.getElementById('hd-dia').value;h.dia=d?parseInt(d):null;h.tipo=document.getElementById('hd-tipo').value;cerrarHitoDetalle();renderAnio();renderMes();saveEstrategia();mostrarToast('Fecha actualizada ✓');}
+function borrarHito(i){est.hitos.splice(i,1);cerrarHitoDetalle();renderAnio();renderMes();saveEstrategia();mostrarToast('Fecha borrada');}
+function cerrarHitoDetalle(){document.getElementById('anio-detalle').innerHTML='';}
 // MES
 function cambiarMes(d){mesActivo+=d;if(mesActivo<0){mesActivo=11;cambiarAnio(-1);return;}if(mesActivo>11){mesActivo=0;cambiarAnio(1);return;}renderMes();}
 function renderMes(){

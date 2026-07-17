@@ -212,6 +212,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#38ada9}
       <input type="text" id="hito-texto" placeholder="Ej: Día Mundial del Suelo Pélvico">
       <button class="btn mini" onclick="addHito()">+ Añadir</button>
     </div>
+    <div id="anio-hitos"></div>
     <div id="anio-cal"></div>
   </div>
 
@@ -452,6 +453,12 @@ function renderAnio(){
   }
   cont.innerHTML=html;
   cont.querySelectorAll('h4').forEach(function(h){h.onclick=function(){mesActivo=parseInt(h.dataset.m);renderMes();goTo('view-mes');};});
+  var hl=document.getElementById('anio-hitos');
+  if(hl){
+    var arr=est.hitos.map(function(hh,i){return {h:hh,i:i};}).sort(function(a,b){return (a.h.mes-b.h.mes)||((a.h.dia||0)-(b.h.dia||0));});
+    hl.innerHTML=arr.length?('<div style="font-size:12px;color:#999;margin:2px 0 6px">Toca la ✕ para borrar una fecha:</div><div class="chips">'+arr.map(function(o){var hh=o.h;return '<span class="chip" style="border-color:'+(TIPOCOL[hh.tipo]||'#ccc')+'"><span style="width:8px;height:8px;border-radius:50%;background:'+(TIPOCOL[hh.tipo]||'#ccc')+';display:inline-block"></span> '+MESCORTO[hh.mes-1]+(hh.dia?' '+hh.dia:'')+' · '+esc(hh.texto)+' <span class="x" data-hi="'+o.i+'">✕</span></span>';}).join('')+'</div>'):'';
+    hl.querySelectorAll('.x').forEach(function(x){x.onclick=function(){est.hitos.splice(parseInt(x.dataset.hi),1);renderAnio();renderMes();saveEstrategia();};});
+  }
 }
 // MES
 function cambiarMes(d){mesActivo+=d;if(mesActivo<0){mesActivo=11;cambiarAnio(-1);return;}if(mesActivo>11){mesActivo=0;cambiarAnio(1);return;}renderMes();}
